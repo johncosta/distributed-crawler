@@ -1,0 +1,6 @@
+twisted
+service_identity
+treq
+klein
+pytest
+pytest-cov
