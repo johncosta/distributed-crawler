@@ -150,10 +150,10 @@ def test_result_url(four_urls_str, monkeypatch):
     assert coord.jobs["abcde"].working_count == 4
     assert coord.jobs["abcde"].finished_count == 0
 
-    coord.clients[0].line_received("ready abcde")
+    coord.clients[0].line_received("url_completed abcde")
     coord.clients[0].line_received("found abcde 1 http://derp.com")
     coord.clients[0].line_received("found abcde 1 http://derp.com/asdf.jpg")
-    coord.clients[1].line_received("ready abcde")
+    coord.clients[1].line_received("url_completed abcde")
     coord.clients[1].line_received("found abcde 1 http://dergle.com")
 
     assert len(coord.jobs["abcde"].seen_urls) == 7
@@ -181,12 +181,12 @@ def test_get_status(four_urls_str, monkeypatch):
     for client in coord.clients:
         client._drain()
 
-    coord.clients[0].line_received("ready abcde")
+    coord.clients[0].line_received("url_completed abcde")
     coord.clients[0].line_received("found abcde 1 http://derp.com")
     coord.clients[0].line_received("found abcde 1 http://google.com")
     coord.clients[0].line_received("found abcde 1 http://derp.com/asdf.jpg")
     coord.clients[0].line_received("found abcde 1 http://derp.com/herp.gif")
-    coord.clients[1].line_received("ready abcde")
+    coord.clients[1].line_received("url_completed abcde")
     coord.clients[1].line_received("found abcde 1 http://dergle.com")
 
     

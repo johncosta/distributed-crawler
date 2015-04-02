@@ -7,7 +7,7 @@ import argparse
 def main(node_type, coord_url=None, drone_count=2):
     from twisted.internet import reactor
 
-    if node_type not in [b"coordinator", b"drone_only"]:
+    if node_type not in [b"coordinator", b"drone"]:
         raise InvalidArguments("Please pick 'coordinator' or 'drone_only'.")
     elif node_type == b"drone_only" and coord_url is None:
         raise InvalidArguments("'coord_url' is required for drone-only nodes.")
@@ -19,6 +19,7 @@ def main(node_type, coord_url=None, drone_count=2):
     else:
         server = central.CoordinatorServer()
         http_server = central.JobApiServer(server)
+        # TODO: endpoints etc. also tls! tls with endpoints!
         reactor.listenTCP(http_port, http_server.to_factory())
         reactor.listenTCP(coord_port, server)
 

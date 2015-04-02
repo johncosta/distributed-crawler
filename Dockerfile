@@ -7,7 +7,10 @@ RUN apt-get update && apt-get -y install -q \
     build-essential \
     python-dev \
     libffi-dev \
-    libssl-dev
+    libssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev
 
 COPY get-pip.py /tmp/get-pip.py
 # There seems to be a bug with using chmod in the same command:

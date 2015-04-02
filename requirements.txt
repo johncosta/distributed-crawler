@@ -2,5 +2,6 @@ twisted
 service_identity
 treq
 klein
+lxml
 pytest
 pytest-cov

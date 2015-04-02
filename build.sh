@@ -1,5 +1,5 @@
 #!/bin/bash
 
 docker build -t lahwran/crawler . || exit 1
-docker stop crawler-run
-docker rm crawler-run
+docker stop crawler-run || true
+docker rm crawler-run || true

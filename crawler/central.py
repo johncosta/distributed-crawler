@@ -33,7 +33,7 @@ class Job(object):
         self.seen_urls.add(url)
 
         parsed = urlparse.urlparse(url)
-        if re.search(r'\.(gif|je?pg|png|bmp)', parsed.path):
+        if re.search(r'\.(gif|je?pg|png|bmp|webp)', parsed.path):
             self.result_urls.add(url)
 
     def pop_url(self):
@@ -63,7 +63,7 @@ class CoordinatorSession(util.CommandProtocol):
         queue_entry = util.queue_entry_parse(url_info)
         self.coordinator.found_url(queue_entry)
 
-    def message_ready(self, job_id):
+    def message_url_completed(self, job_id):
         if not self.send_one():
             self.waiting = True
         job = self.coordinator.jobs[job_id]
