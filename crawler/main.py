@@ -4,11 +4,11 @@ from __future__ import unicode_literals, print_function
 import argparse
 
 
-def main(node_type, coord_url=None, drone_count=2):
+def main(node_type, coord_url=None):
     from twisted.internet import reactor
 
     if node_type not in [b"coordinator", b"drone"]:
-        raise InvalidArguments("Please pick 'coordinator' or 'drone_only'.")
+        raise InvalidArguments("Please pick 'coordinator' or 'drone'.")
     elif node_type == b"drone_only" and coord_url is None:
         raise InvalidArguments("'coord_url' is required for drone-only nodes.")
 

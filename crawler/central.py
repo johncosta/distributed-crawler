@@ -4,6 +4,7 @@ import json
 import random
 import urlparse
 import re
+import itertools
 from collections import deque
 
 from twisted.internet.protocol import Factory
@@ -28,11 +29,13 @@ class Job(object):
     def add_url(self, url, level=0):
         if url in self.seen_urls:
             return
-
-        self.queue.append(util.QueueEntry(self.id, level, url))
-        self.seen_urls.add(url)
+        if level < 2:
+            self.queue.append(util.QueueEntry(self.id, level, url))
+            self.seen_urls.add(url)
 
         parsed = urlparse.urlparse(url)
+        # why does match() match only the beginning, instead of the whole
+        # string? I will never stop wondering (...even after I find out)
         if re.search(r'\.(gif|je?pg|png|bmp|webp)', parsed.path):
             self.result_urls.add(url)
 
@@ -47,12 +50,13 @@ class Job(object):
 class CoordinatorSession(util.CommandProtocol):
     def __init__(self, coordinator):
         self.coordinator = coordinator
-        self.waiting = False
+        self.waiting = 0
 
     def connectionMade(self):
         self.coordinator.clients.append(self)
-        self.waiting = True
-        self.send_one()
+        self.waiting = self.coordinator.parallel_per_drone
+        for x in range(self.waiting):
+            self.send_one()
 
     def connectionLost(self, reason):
         self.coordinator.clients.remove(self)
@@ -64,21 +68,19 @@ class CoordinatorSession(util.CommandProtocol):
         self.coordinator.found_url(queue_entry)
 
     def message_url_completed(self, job_id):
-        if not self.send_one():
-            self.waiting = True
+        self.waiting += 1
+        self.send_one()
         job = self.coordinator.jobs[job_id]
         job.finished_one()
-        self.send_one()
 
     def send_one(self, queue_entry=None):
         if queue_entry is None:
             queue_entry = self.coordinator.pop_url()
             if queue_entry is None:
-                return False
+                return
 
-        self.waiting = False
+        self.waiting -= 1
         self.command(b"scan_url", util.queue_entry_format(queue_entry))
-        return True
 
 
 class CoordinatorServer(Factory):
@@ -104,9 +106,10 @@ class CoordinatorServer(Factory):
     "factories", and "Session" for what twisted calls "protocols".
     """
 
-    def __init__(self):
+    def __init__(self, parallel_per_drone):
         self.jobs = {}
         self.clients = []
+        self.parallel_per_drone = parallel_per_drone
 
     def allocate_job(self):
         # this method adapted from tree-of-life/treeoflife/nodes/node.py
@@ -125,17 +128,15 @@ class CoordinatorServer(Factory):
     def found_url(self, queue_entry):
         # TODO: robots.txt parsing
         job = self.jobs[queue_entry.job_id]
-        if queue_entry.level <= 1:
-            job.add_url(queue_entry.url, queue_entry.level)
-
-        # why does match() match only the beginning, instead of the whole
-        # string? I will never stop wondering (...even after I find out)
+        job.add_url(queue_entry.url, queue_entry.level)
+        self._broadcast(job)
 
     def _broadcast(self, job):
-        for client in self.clients:
+        clients = [[client] * client.waiting for client in self.clients]
+        for client in itertools.chain.from_iterable(clients):
             if not job.queue:
                 break
-            if not client.waiting:
+            if client.waiting <= 0:
                 continue
             client.send_one(job.pop_url())
 
@@ -200,7 +201,7 @@ class JobApiServer(object):
             "crawled_urls": {
                 "finished": job.finished_count,
                 "in_progress": job.working_count,
-                "waiting": len(job.queue)
+                "waiting_in_queue": len(job.queue)
             },
             "result_count": len(job.result_urls),
         }
