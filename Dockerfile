@@ -28,4 +28,5 @@ COPY . /app/
 
 WORKDIR /app/
 
-CMD ["/usr/bin/python"]
+ENTRYPOINT ["/usr/bin/python", "-m", "crawler.main"]
+CMD ["--help"]

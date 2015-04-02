@@ -1,5 +1,3 @@
-from __future__ import unicode_literals, print_function
-
 import json
 import random
 import urlparse
@@ -8,6 +6,7 @@ import itertools
 from collections import deque
 
 from twisted.internet.protocol import Factory
+from twisted.web.server import Site
 from klein import Klein
 
 from crawler import util
@@ -80,7 +79,7 @@ class CoordinatorSession(util.CommandProtocol):
                 return
 
         self.waiting -= 1
-        self.command(b"scan_url", util.queue_entry_format(queue_entry))
+        self.command("scan_url", util.queue_entry_format(queue_entry))
 
 
 class CoordinatorServer(Factory):
@@ -126,7 +125,7 @@ class CoordinatorServer(Factory):
                             "really should be impossible. %s" % job_id)
 
     def found_url(self, queue_entry):
-        # TODO: robots.txt parsing
+        # TODO: robots.txt parsing - has a bonus: sitemap.xml
         job = self.jobs[queue_entry.job_id]
         job.add_url(queue_entry.url, queue_entry.level)
         self._broadcast(job)
@@ -178,7 +177,7 @@ class JobApiServer(object):
     def __init__(self, coordinator):
         self.coordinator = coordinator
 
-    @http.route(b"/", methods=[b"POST"])
+    @http.route("/", methods=["POST"])
     def http_submit_urls(self, request):
         # urls can't have \n in them anymore. I say so. >:|
         #   (they actually can in real life, although few things support it.)
@@ -188,13 +187,21 @@ class JobApiServer(object):
         #   but whatever. request is a t.w.s.Request.
 
         urls = (url for url in request.content.read().split("\n") if url)
+        print
+        print repr(urls)
 
         job = self.coordinator.allocate_job()
         for url in urls:
+            print
+            print "adding url", repr(url), type(url)
+            print
+            if type(url) == unicode:
+                print "Unicode string!"
+                url = url.encode("utf-8")
             job.add_url(url)
         self.coordinator._broadcast(job)
 
-        return json.dumps(job.id)
+        return json.dumps(job.id) + '\n'
 
     def _job_status_info(self, job):
         return {
@@ -217,19 +224,19 @@ class JobApiServer(object):
         request.setResponseCode(404)
         return 'No such job id'
 
-    @http.route(b"/status/<job_id>")
+    @http.route("/status/<job_id>")
     def http_job_status(self, request, job_id):
         job = self.get_job(job_id)
         return json.dumps(self._job_status_info(job))
 
-    @http.route(b"/status/all")
+    @http.route("/status/all")
     def http_job_all(self, request):
         result = {}
         for job_id, job in self.coordinator.jobs.items():
             result[job_id] = self._job_status_info(job)
         return json.dumps(result)
 
-    @http.route(b"/result/<job_id>")
+    @http.route("/result/<job_id>")
     def http_job_results(self, request, job_id):
         job = self.get_job(job_id)
         return json.dumps(list(job.result_urls))

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals, print_function
 
 import string
 import random
@@ -47,34 +46,40 @@ class CommandProtocol(LineOnlyReceiver):
     # just a cheap thing. would put it in LineOnlyReceiver if that wasn't
     # copied from elsewhere.
     def line_received(self, line):
+        print "line_received:", line
         command, space, data = line.partition(b' ')
 
         # TODO: this will crash if the other end sends an
         # invalid message. this is trusting the remote computer!
-        handler = getattr(self, b"message_%s" % command)
+        handler = getattr(self, "message_%s" % command)
 
         handler(data)
 
     def command(self, command, args):
-        self.send_line(b"{} {}".format(command, args))
+        print "sending command:", command, args
+        self.send_line("{} {}".format(command, args))
 
 
 def queue_entry_format(queue_entry):
-    # a4b19 1 http://google.com/section with spaces/derp
-    return b"{} {} {}".format(
+    # a4b19 1 "http://google.com/section with spaces/derp"
+    # the json is a hack to get quoting. I happen to know python's json
+    # lib doesn't produce newlines, but json doesn't guarantee that, so it's
+    # kind of gross. It's needed because in my testing, *I actually saw
+    # newlines in urls!*
+    return "{} {} {}".format(
             queue_entry.job_id,
             queue_entry.level,
-            queue_entry.url.encode("utf-8"))
+            json.dumps(queue_entry.url.decode("utf-8")))
 
 
 def queue_entry_parse(data):
     job_id, _, rest = data.partition(b' ')
     level, _, url = rest.partition(b' ')
     level = int(level)
-    url = url.decode("utf-8")
+    url = json.loads(url).encode("utf-8")
     return QueueEntry(job_id, level, url)
 
 
 def gen_id():
     id_chars = string.ascii_letters + string.digits
-    return b"".join(random.choice(id_chars) for x in xrange(5))
+    return "".join(random.choice(id_chars) for x in xrange(5))

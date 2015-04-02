@@ -66,16 +66,31 @@ class CoordinatorClient(util.CommandProtocol):
         # this easier to test, though, because of implicit maybeDeferred.
 
         # TODO: limit size of retrieved content. it could be huge!
+        try:
 
-        queue_entry = util.queue_entry_parse(url_info)
+            queue_entry = util.queue_entry_parse(url_info)
 
-        response = yield treq.get(queue_entry.url)
-        content = yield treq.content(response)
+            print "making request..."
+            response = yield treq.get(queue_entry.url)
+            content = yield treq.content(response)
+            print "got content"
 
-        base_url, urls = self.scan_page(queue_entry.url, content)
-        urls = self.normalize_urls(base_url, urls)
+            base_url, urls = self.scan_page(queue_entry.url, content)
+            urls = self.normalize_urls(base_url, urls)
+
+            # TODO: would be cool to put some jitter in here. probably not needed
+            # though, there will be natural jitter from the requests maybe possibly
+            # hopefully... there will probably still be situations that it'd be
+            # wanted though
+        except:
+            import traceback
+            traceback.print_exc()
+            print "offending url:", queue_entry.url
+            self.command("url_completed", queue_entry.job_id)
+            return
 
         self.command("url_completed", queue_entry.job_id)
+
         for url in urls:
             # blah, QueueEntry feels like java
             qe = util.QueueEntry(queue_entry.job_id, queue_entry.level + 1, url)
